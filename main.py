@@ -21,45 +21,38 @@ def start_client(client):
     fl.client.start_numpy_client(server_address="[::]:8080", client=client)
 
 
-def start_server():
-    print('start_server')
+def start_server(n):
+    print('start_server', n)
     fl.server.start_server(config=fl.server.ServerConfig(num_rounds=3))
+
+
+def start_node(arg):
+    if isinstance(arg, SimpleNumpyClient):
+        print('Sleep ...')
+        sleep(1)
+        print('Launch Client')
+        start_client(arg)
+    else:
+        print('Launch Server')
+        start_server(arg)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Private Federated Learning Flower")
 
     parser.add_argument("--data-path", type=str, default="/home/user1/datasets/cifar", help="dir path for datafolder")
-    # parser.add_argument("--num-clients", type=int, default="3", help="Number of clients in federation")
-    parser.add_argument("--node-type", type=str, choices=['client', 'server'], help='cline tnode or server node')
-
+    parser.add_argument("--num-clients", type=int, default="3", help="Number of clients in federation")
     args = parser.parse_args()
 
     net = Net().to(DEVICE)
     trainloader, testloader = load_data(root=args.data_path)
-    # clients = [get_client(net=net, train_fn=train, test_fn=test, trainloader=trainloader, testloader=testloader)
-    #            for _ in range(args.num_clients)]
+    clients = [get_client(net=net, train_fn=train, test_fn=test, trainloader=trainloader, testloader=testloader)
+               for _ in range(args.num_clients)]
 
-    if args.node_type == 'server':
-        print('Launch Server')
-        start_server()
-    elif args.node_type == 'client':
-        print('Launch Client')
-        start_client(get_client(net=net, train_fn=train, test_fn=test, trainloader=trainloader, testloader=testloader))
-    else:
-        raise Exception('argument node type should be client or server')
+    nodes = [1] + clients
 
-
-
-    # print('Launch Server')
-    # with ThreadPoolExecutor() as ex:
-    #     for _ in [1]:
-    #         ex.submit(start_server, 1)
-    # print('Sleep ...')
-    # sleep(1)
-    # print('Launch Clients')
-    # with multiprocessing.Pool() as pool:
-    #     pool.map(start_client, clients)
+    with multiprocessing.Pool() as pool:
+        pool.map(start_node, nodes)
 
 
 if __name__ == "__main__":
