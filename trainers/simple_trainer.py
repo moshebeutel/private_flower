@@ -5,19 +5,25 @@ from tqdm import tqdm
 DEVICE = "cpu"
 
 
-def train(net, trainloader, epochs):
+def train(net, trainloader, epochs, iterations=-1):
     """Train the network on the training set."""
+    print(f'train for {epochs} epochs {iterations if iterations > 0 else len(trainloader)} iterations each epoch')
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     pbar = tqdm(range(epochs))
     for epoch in pbar:
-        for images, labels in trainloader:
+        epoch_loss = 0.0
+        for (i, (images, labels)) in enumerate(trainloader):
             images, labels = images.to(DEVICE), labels.to(DEVICE)
             optimizer.zero_grad()
             loss = criterion(net(images), labels)
+            epoch_loss += float(loss)
             loss.backward()
             optimizer.step()
-            pbar.set_description(f'Epoch {epoch} loss {float(loss)}')
+            del loss
+            if 0 < iterations < i:
+                break
+        pbar.set_description(f'Epoch {epoch} loss {epoch_loss}')
 
 
 def test(net, testloader):
@@ -33,5 +39,9 @@ def test(net, testloader):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
+    print()
+    print('*************************')
     print(f'Test Accuracy {accuracy}')
+    print('*************************')
+
     return loss, accuracy

@@ -17,23 +17,34 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         print('SimpleNumpyClient.__init__', self._id)
 
     def get_parameters(self, config):
-        print('SimpleNumpyClient.get_parameters', self._id)
+        print()
+        print('******************************************')
+        print(f'SimpleNumpyClient.get_parameters id {self._id} config {config}')
+        print('******************************************')
         return [val.cpu().numpy() for _, val in self._net.state_dict().items()]
 
     def set_parameters(self, parameters):
-        print('SimpleNumpyClient.set_parameters', self._id)
+        print()
+        print('******************************************')
+        print(f'SimpleNumpyClient.set_parameters id {self._id} parameters num {len(parameters)}')
+        print('******************************************')
         params_dict = zip(self._net.state_dict().keys(), parameters)
         state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
         self._net.load_state_dict(state_dict, strict=True)
 
     def fit(self, parameters, config):
+        print()
+        print('******************************************')
         print('SimpleNumpyClient.fit', self._id)
         self.set_parameters(parameters)
         self._train(self._net, self._trainloader, epochs=1)
         return self.get_parameters(config={}), len(self._trainloader.dataset), {}
 
     def evaluate(self, parameters, config):
+        print()
+        print('******************************************')
         print('SimpleNumpyClient.evaluate', self._id)
+        print('******************************************')
         self.set_parameters(parameters)
         loss, accuracy = self._test(self._net, self._testloader)
         return float(loss), len(self._testloader.dataset), {"accuracy": float(accuracy)}
