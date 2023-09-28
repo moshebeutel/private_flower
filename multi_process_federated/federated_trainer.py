@@ -1,0 +1,54 @@
+import multiprocessing
+from collections import OrderedDict
+import torch
+from clients.client_factory import get_client
+from multi_process_federated.node_launchers import start_node
+from trainers.simple_trainer import train, test
+
+
+def federated_train(net, test_loader, test_loader_ood, train_loader, num_standard_clients=1, add_ood_client=True):
+    """
+    Perform federated training with multiple clients.
+
+    Parameters:
+    net (torch.nn.Module): The neural network model.
+    test_loader (torch.utils.data.DataLoader): DataLoader for standard testing data.
+    test_loader_ood (torch.utils.data.DataLoader): DataLoader for out-of-distribution (OOD) testing data.
+    train_loader (torch.utils.data.DataLoader): DataLoader for training data.
+    num_standard_clients (int, optional): Number of standard clients. Defaults to 1.
+    add_ood_client (bool, optional): Whether to add an OOD client. Defaults to True.
+
+    Returns:
+    None
+    """
+    clients = [get_client(net=net, train_fn=train, test_fn=test, train_loader=train_loader, test_loader=test_loader)
+               for _ in range(num_standard_clients)]
+
+    if add_ood_client:
+        client_ood = get_client(net=net, train_fn=train, test_fn=test, train_loader=train_loader,
+                                test_loader=test_loader_ood)
+        clients += [client_ood]
+
+    nodes = [1] + clients
+
+    with multiprocessing.Pool() as pool:
+        pool.map(start_node, nodes)
+
+    load_state_from_client(net=net, client=clients[-1])
+
+
+def load_state_from_client(client, net):
+    """
+    Load the state from a client to the given neural network.
+
+    Parameters:
+    client: Client from which to load the parameters.
+    net (torch.nn.Module): The neural network model.
+
+    Returns:
+    None
+    """
+    parameters = client.get_parameters(config={})
+    params_dict = zip(net.state_dict().keys(), parameters)
+    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+    net.load_state_dict(state_dict, strict=True)

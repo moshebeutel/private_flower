@@ -1,112 +1,91 @@
 import argparse
-import multiprocessing
-from collections import OrderedDict
-from pathlib import Path
-from time import sleep
-import flwr as fl
+import os.path
+import time
 import torch
-from tqdm import tqdm
-
-from clients.simple_numpy_client import SimpleNumpyClient
-from dataloaders.cifar10_loader import load_data
+from dataloaders.data_loaders_factory import get_data_loaders
 from models.sixty_min_blitz_cnn import Net
-from trainers.simple_trainer import DEVICE, train, test
-import numpy as np
+from multi_process_federated.federated_trainer import federated_train
+from trainers.fine_tune_train import fine_tune_train, freeze_all_layers_but_last
+from trainers.simple_trainer import evaluate_on_loaders
+
+# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = "cpu"
 
 
-def get_client(net, train_fn, test_fn, trainloader, testloader):
-    return SimpleNumpyClient(net=net, train_fn=train_fn, test_fn=test_fn, trainloader=trainloader,
-                             testloader=testloader)
+# Function to parse command-line arguments
+def get_args(parser):
+    """
+    Parse command-line arguments.
+
+    Parameters:
+    parser (argparse.ArgumentParser): Argument parser object
+
+    Returns:
+    argparse.Namespace: Parsed arguments
+    """
+    # Argument definitions
+    # ...
+
+    # Parse arguments
+    args = parser.parse_args()
+    return args
 
 
-def start_client(client):
-    print('start_client')
-    fl.client.start_numpy_client(server_address="[::]:8080", client=client)
-    print('after start client')
-
-
-def start_server():
-    print('start_server')
-    fl.server.start_server(config=fl.server.ServerConfig(num_rounds=20))
-    print('after start server')
-
-
-def start_node(arg):
-    if isinstance(arg, SimpleNumpyClient):
-        print('Sleep ...')
-        sleep(1)
-        print('Launch Client')
-        start_client(arg)
-        print('Exit Client')
-    else:
-        print('Launch Server')
-        start_server()
-        print('Exit Server')
-
-
+# Main function
 def main():
+    """
+    Main function for Private Federated Learning Flower.
+    """
     parser = argparse.ArgumentParser(description="Private Federated Learning Flower")
 
-    parser.add_argument("--data-path", type=str, default="~/datasets/cifar", help="dir path for datafolder")
-    parser.add_argument("--num-clients", type=int, default="1", help="Number of clients in federation")
-    parser.add_argument("--batch-size", type=int, default="128", help="Number of images in train batch")
-    parser.add_argument("--node-type", type=str, choices=['client', 'server'], default='client',
-                        help='client node or server node')
-    parser.add_argument("--ood", type=bool, default=False, help='client node or server node')
+    args = get_args(parser)  # Get command-line arguments
 
-    args = parser.parse_args()
-
+    # Initialize the neural network model
     net = Net().to(DEVICE)
-    root = args.data_path
-    root = root.replace('~', str(Path.home()))
 
-    trainloader, testloader = load_data(root=root, batch_size=args.batch_size, ood=False)
-    trainloader_ood, testloader_ood = load_data(root=root, batch_size=args.batch_size, ood=True)
+    if args.load_from:
+        # Load pretrained weights
+        assert os.path.exists(
+            args.load_from), f'Given path for pre-trained weights does not exist. Got {args.load_from}'
+        net.load_state_dict(torch.load(args.load_from))
 
-    clients = [get_client(net=net, train_fn=train, test_fn=test, trainloader=trainloader, testloader=testloader)
-               for _ in range(args.num_clients)]
-    client_ood = get_client(net=net, train_fn=train, test_fn=test, trainloader=trainloader, testloader=testloader_ood)
+    # Load data loaders for training and testing
+    train_loader, train_loader_ood, test_loader, test_loader_ood = get_data_loaders(data_path=args.data_path,
+                                                                                    batch_size=args.batch_size)
 
-    nodes = [1] + clients + [client_ood]
+    if args.preform_pretrain:
+        # Train model in a federated manner before fine tuning
 
-    with multiprocessing.Pool() as pool:
-        pool.map(start_node, nodes)
+        assert os.path.exists(args.saved_models_path), f'Create path for saved models. Got {args.saved_models_path}'
 
-    print()
-    print('******************')
-    print('Few shot training')
-    print('******************')
-    parameters = client_ood.get_parameters(config={})
-    params_dict = zip(net.state_dict().keys(), parameters)
-    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
-    net.load_state_dict(state_dict, strict=True)
+        federated_train(num_standard_clients=args.num_clients, net=net, test_loader=test_loader,
+                        test_loader_ood=test_loader_ood, train_loader=train_loader)
 
-    print()
-    print('Verify weights')
-    loss, acc = test(net=net, testloader=testloader)
-    loss_ood, acc_ood = test(net=net, testloader=testloader_ood)
-    losses_on_original, accs_on_original, losses_on_aug, accs_on_aug = [loss_ood], [acc], [loss_ood], [acc_ood]
-    print(f'Retrain')
-    for i in tqdm(range(len(trainloader_ood))):
-        # num_few_shots = (i+1) * args.batch_size
-        # print(f'train using {num_few_shots} images. ({i+1} batches of {args.batch_size})')
-        train(net=net, trainloader=trainloader_ood, epochs=1, iterations=1)
-        # print('Original test set. Expect degraded acc')
-        loss, acc = test(net=net, testloader=testloader)
-        losses_on_original.append(loss)
-        accs_on_original.append(acc)
-        # print('OOD test set. Expect better acc than earlier')
-        loss, acc = test(net=net, testloader=testloader_ood)
-        losses_on_aug.append(loss)
-        accs_on_aug.append(acc)
-        with open('accs_on_aug.npy', 'wb') as f:
-            np.save(f, np.array(accs_on_aug))
-        with open('losses_on_aug.npy', 'wb') as f:
-            np.save(f, np.array(losses_on_aug))
-        with open('accs_on_original.npy', 'wb') as f:
-            np.save(f, np.array(accs_on_original))
-        with open('losses_on_original.npy', 'wb') as f:
-            np.save(f, np.array(losses_on_original))
+        torch.save(net.state_dict(), f'{args.saved_models_path}/saved_at_{time.asctime()}.pt')
+    else:
+        assert args.load_from, f'Fine tune a never trained model?'
 
+    # Evaluate the model on the provided loaders
+    [base_accuracy_on_regular_data, base_accuracy_on_ood_data] = evaluate_on_loaders(net=net, loaders=[test_loader,
+                                                                                                       test_loader_ood])
+
+    if args.freeze_all_but_last:
+        assert args.load_from or args.preform_pretrain, 'Freeze random weights???'
+        assert args.freeze_all_but_last > 0, \
+            f'Expected positive number of layers to freeze. Got {args.freeze_all_but_last}'
+
+        freeze_all_layers_but_last(model=net, num_layers_to_freeze=args.freeze_all_but_last)
+
+    # Fine-tune the model
+    fine_tune_train(net=net,
+                    train_loader_ood=train_loader_ood,
+                    test_loader_ood=test_loader_ood,
+                    test_loader=test_loader,
+                    base_accuracy_on_regular_data=base_accuracy_on_regular_data,
+                    base_accuracy_on_ood_data=base_accuracy_on_ood_data,
+                    avg_orig=args.avg_orig)
+
+
+# Entry point
 if __name__ == "__main__":
     main()
