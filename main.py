@@ -42,7 +42,7 @@ def get_args(parser):
                              ' simple mlp heads) only ')
 
     parser.add_argument("--load-from", type=str,
-                        default='/home/user/GIT/private_flower/saved_models/saved_at_Fri Sep 29 10:05:19 2023_resnet20.pt',
+                        default='./saved_models/saved_at_Fri Sep 29 10:05:19 2023_resnet20.pt',
                         help='Load a pretrained model from given path. Train from scratch if string empty')
     parser.add_argument("--preform-pretrain", type=bool, default=False,
                         help='Train model in a federated manner before fine tuning')
