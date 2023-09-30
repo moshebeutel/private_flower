@@ -9,12 +9,9 @@ from multi_process_federated.federated_trainer import federated_train
 from trainers.fine_tune_train import fine_tune_train, freeze_all_layers_but_last
 from trainers.simple_trainer import evaluate_on_loaders
 
-# DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-DEVICE = "cpu"
-
 
 # Function to parse command-line arguments
-def get_args(parser):
+def get_command_line_arguments(parser):
     """
     Parse command-line arguments.
 
@@ -47,6 +44,9 @@ def get_args(parser):
     parser.add_argument("--preform-pretrain", type=bool, default=False,
                         help='Train model in a federated manner before fine tuning')
 
+    parser.add_argument("--use-cuda", type=bool, default=False,
+                        help='Use GPU. Use cpu if not')
+
     parser.add_argument("--saved-models-path", type=str, default='./saved_models',
                         help='Train model in a federated manner before fine tuning')
     args = parser.parse_args()
@@ -60,10 +60,14 @@ def main():
     """
     parser = argparse.ArgumentParser(description="Private Federated Learning Flower")
 
-    args = get_args(parser)  # Get command-line arguments
+    args = get_command_line_arguments(parser)
+
+    device = torch.device(
+        "cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu"
+    )
 
     # Initialize the neural network model
-    net = get_model(args.model_name).to(DEVICE)
+    net = get_model(args.model_name).to(device)
 
     if args.load_from:
         # Load pretrained weights

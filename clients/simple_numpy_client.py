@@ -4,6 +4,7 @@ import flwr as fl
 import torch
 from torch.utils.data import DataLoader
 
+
 class SimpleNumpyClient(fl.client.NumPyClient):
     client_counter = 0
 
@@ -77,7 +78,7 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         print('SimpleNumpyClient.fit', self._id)
         self.set_parameters(parameters)
         self._train(self._net, self._train_loader, epochs=1)
-        return self.get_parameters(config={}), len(self._train_loader.dataset), {}
+        return self.get_parameters(config={}), len(self._train_loader), {}
 
     def evaluate(self, parameters, config):
         """
@@ -97,4 +98,4 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         print('******************************************')
         self.set_parameters(parameters)
         loss, accuracy = self._test(self._net, self._test_loader)
-        return float(loss), len(self._test_loader.dataset), {"accuracy": float(accuracy)}
+        return float(loss), len(self._test_loader), {"accuracy": float(accuracy)}
