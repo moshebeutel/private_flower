@@ -1,9 +1,10 @@
 import argparse
 import os.path
 import time
+from pathlib import Path
 import torch
+from models.model_factory import get_model_hub_names, get_model
 from dataloaders.data_loaders_factory import get_data_loaders
-from models.sixty_min_blitz_cnn import Net
 from multi_process_federated.federated_trainer import federated_train
 from trainers.fine_tune_train import fine_tune_train, freeze_all_layers_but_last
 from trainers.simple_trainer import evaluate_on_loaders
@@ -23,10 +24,31 @@ def get_args(parser):
     Returns:
     argparse.Namespace: Parsed arguments
     """
-    # Argument definitions
-    # ...
+    parser.add_argument("--data-path", type=str, default=f"{str(Path.home())}/datasets/cifar",
+                        help="dir path for datafolder")
+    parser.add_argument("--num-clients", type=int, default="1", help="Number of clients in federation")
+    parser.add_argument("--num-rounds", type=int, default="20",
+                        help="Number of federated training rounds in federation")
+    parser.add_argument("--batch-size", type=int, default="128", help="Number of images in train batch")
+    parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default='resnet20',
+                        help='client node or server node')
+    parser.add_argument("--avg-orig", type=bool, default=True,
+                        help='Use `Robust fine-tuning of zero-shot model (https://arxiv.org/abs/2109.01903)`.'
+                             ' Average the fine tuned model and the pre trained model')
+    parser.add_argument("--freeze-all-but-last", type=int, default=0,
+                        help='Use `Fine-Tuning can Distort Pretrained Features and'
+                             ' Underperform Out-of-Distribution (https://arxiv.org/abs/2202.10054)`.'
+                             ' fine tune the classification head (last n linear layers in the case of'
+                             ' simple mlp heads) only ')
 
-    # Parse arguments
+    parser.add_argument("--load-from", type=str,
+                        default='/home/user/GIT/private_flower/saved_models/saved_at_Fri Sep 29 10:05:19 2023_resnet20.pt',
+                        help='Load a pretrained model from given path. Train from scratch if string empty')
+    parser.add_argument("--preform-pretrain", type=bool, default=False,
+                        help='Train model in a federated manner before fine tuning')
+
+    parser.add_argument("--saved-models-path", type=str, default='./saved_models',
+                        help='Train model in a federated manner before fine tuning')
     args = parser.parse_args()
     return args
 
@@ -41,7 +63,7 @@ def main():
     args = get_args(parser)  # Get command-line arguments
 
     # Initialize the neural network model
-    net = Net().to(DEVICE)
+    net = get_model(args.model_name).to(DEVICE)
 
     if args.load_from:
         # Load pretrained weights
@@ -59,7 +81,7 @@ def main():
         assert os.path.exists(args.saved_models_path), f'Create path for saved models. Got {args.saved_models_path}'
 
         federated_train(num_standard_clients=args.num_clients, net=net, test_loader=test_loader,
-                        test_loader_ood=test_loader_ood, train_loader=train_loader)
+                        test_loader_ood=test_loader_ood, train_loader=train_loader, num_rounds=args.num_rounds)
 
         torch.save(net.state_dict(), f'{args.saved_models_path}/saved_at_{time.asctime()}.pt')
     else:
