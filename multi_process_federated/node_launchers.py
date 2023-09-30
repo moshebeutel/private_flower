@@ -18,7 +18,7 @@ def start_client(client):
     print('after start client')
 
 
-def start_server():
+def start_server(num_rounds=1):
     """
     Start the federated learning server.
 
@@ -47,6 +47,8 @@ def start_node(arg):
         start_client(arg)
         print('Exit Client')
     else:
+        assert isinstance(arg, int), f'server excepts integer argument. Got {arg}'
+        assert arg > 0, f'server excepts a positive integer argument for num_rounds. Got {arg}'
         print('Launch Server')
-        start_server()
+        start_server(arg)
         print('Exit Server')
