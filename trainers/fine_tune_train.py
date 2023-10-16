@@ -1,3 +1,4 @@
+import time
 from copy import copy
 from typing import List
 
@@ -5,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from trainers.simple_trainer import train, test
+from trainers.simple_trainer import train, test, train_limited_iterations
 
 
 def fine_tune_train(net: torch.nn.Module,
@@ -32,7 +33,7 @@ def fine_tune_train(net: torch.nn.Module,
     accuracy_list_on_original, accuracy_list_on_ood = [base_accuracy_on_regular_data], [base_accuracy_on_ood_data]
     orig_pretrained_net = copy(net) if avg_orig else None
     for _ in tqdm(range(len(train_loader_ood))):
-        train(net=net, train_loader=train_loader_ood, epochs=1, iterations=1)
+        train_limited_iterations(net=net, train_loader=train_loader_ood, num_iterations=1)
 
         if avg_orig:
             average_models(net, orig_pretrained_net)
@@ -93,8 +94,8 @@ def save_iteration_results(accuracy_list_on_ood_data: List[float], accuracy_list
     Returns:
     None
     """
-    with open('accs_on_aug.npy', 'wb') as f:
+    with open(f'accs_on_aug_{time.asctime()}.npy', 'wb') as f:
         np.save(f, np.array(accuracy_list_on_ood_data))
 
-    with open('accs_on_original.npy', 'wb') as f:
+    with open(f'accs_on_original_{time.asctime()}.npy', 'wb') as f:
         np.save(f, np.array(accuracy_list_on_standard_data))

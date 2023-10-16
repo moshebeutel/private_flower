@@ -40,7 +40,6 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         Returns:
         List[np.ndarray]: List of model parameters in numpy array format.
         """
-        print()
         print('******************************************')
         print(f'SimpleNumpyClient.get_parameters id {self._id} config {config}')
         print('******************************************')
@@ -53,7 +52,6 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         Parameters:
         parameters (List[np.ndarray]): List of model parameters in numpy array format.
         """
-        print()
         print('******************************************')
         print(f'SimpleNumpyClient.set_parameters id {self._id} parameters num {len(parameters)}')
         print('******************************************')
@@ -73,9 +71,9 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         Tuple[List[np.ndarray], int, dict]: A tuple containing the updated model parameters,
                                            the number of samples used for training, and an empty dictionary.
         """
-        print()
         print('******************************************')
         print('SimpleNumpyClient.fit', self._id)
+        print('******************************************')
         self.set_parameters(parameters)
         self._train(self._net, self._train_loader, epochs=1)
         return self.get_parameters(config={}), len(self._train_loader), {}
@@ -92,7 +90,6 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         Tuple[float, int, dict]: A tuple containing the loss, the number of samples used for evaluation,
                                  and a dictionary with the evaluation accuracy.
         """
-        print()
         print('******************************************')
         print('SimpleNumpyClient.evaluate', self._id)
         print('******************************************')

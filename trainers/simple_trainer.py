@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
-def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int, iterations: int = -1):
+def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int = 1):
     """
     Train the network on the training set.
 
@@ -18,24 +18,46 @@ def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int, iteration
     Returns:
     None
     """
-    print(f'train for {epochs} epochs {iterations if iterations > 0 else len(train_loader)} iterations each epoch')
+    print(f'\ntrain for {epochs} epochs  {len(train_loader)} iterations each epoch')
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     device = next(net.parameters()).device
-    pbar = tqdm(range(epochs))
-    for epoch in pbar:
+    net.train()
+    for epoch in range(epochs):
+        print('Epoch', epoch)
         epoch_loss = 0.0
+        optimizer.zero_grad()
         for (i, (images, labels)) in enumerate(train_loader):
             images, labels = images.to(device), labels.to(device)
-            optimizer.zero_grad()
-            loss = criterion(net(images), labels)
-            epoch_loss += float(loss)
-            loss.backward()
-            optimizer.step()
-            del loss
-            if 0 < iterations < i:
-                break
-        pbar.set_description(f'Epoch {epoch} loss {epoch_loss}')
+            epoch_loss += forward_batch(net, images, labels, criterion)
+            images, labels = images.to('cpu'), labels.to('cpu')
+            del images, labels
+        optimizer.step()
+        print(f'Epoch {epoch} finished with loss {epoch_loss}')
+
+
+def forward_batch(net, images, labels, criterion):
+    loss = criterion(net(images), labels)
+    batch_loss = float(loss)
+    loss.backward()
+    del loss, images, labels
+    return batch_loss
+
+
+def train_limited_iterations(net: torch.nn.Module, num_iterations: int, train_loader: DataLoader):
+    device = next(net.parameters()).device
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    optimizer.zero_grad()
+    loss = 0.0
+    for i in range(num_iterations):
+        images, labels = next(iter(train_loader))
+        images, labels = images.to(device), labels.to(device)
+        loss += forward_batch(net, images, labels, criterion)
+        images, labels = images.to('cpu'), labels.to('cpu')
+        del images, labels
+    print(f'{num_iterations} iteration(s) finished with loss {loss}')
+    return loss
 
 
 def test(net: torch.nn.Module, test_loader: DataLoader):
@@ -52,6 +74,7 @@ def test(net: torch.nn.Module, test_loader: DataLoader):
     criterion = torch.nn.CrossEntropyLoss()
     device = next(net.parameters()).device
     correct, total, loss = 0, 0, 0.0
+    net.eval()
     with torch.no_grad():
         for data in tqdm(test_loader):
             images, labels = data[0].to(device), data[1].to(device)

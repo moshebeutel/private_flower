@@ -1,13 +1,14 @@
 import argparse
 import os.path
 import time
+from copy import copy
 from pathlib import Path
 import torch
 from models.model_factory import get_model_hub_names, get_model
 from dataloaders.data_loaders_factory import get_data_loaders
 from multi_process_federated.federated_trainer import federated_train
 from trainers.fine_tune_train import fine_tune_train, freeze_all_layers_but_last
-from trainers.simple_trainer import evaluate_on_loaders
+from trainers.simple_trainer import evaluate_on_loaders, train
 
 
 # Function to parse command-line arguments
@@ -24,12 +25,12 @@ def get_command_line_arguments(parser):
     parser.add_argument("--data-path", type=str, default=f"{str(Path.home())}/datasets/cifar",
                         help="dir path for datafolder")
     parser.add_argument("--num-clients", type=int, default="1", help="Number of clients in federation")
-    parser.add_argument("--num-rounds", type=int, default="20",
+    parser.add_argument("--num-rounds", type=int, default="100",
                         help="Number of federated training rounds in federation")
     parser.add_argument("--batch-size", type=int, default="128", help="Number of images in train batch")
-    parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default='resnet20',
+    parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default='resnet44',
                         help='client node or server node')
-    parser.add_argument("--avg-orig", type=bool, default=True,
+    parser.add_argument("--avg-orig", type=bool, default=False,
                         help='Use `Robust fine-tuning of zero-shot model (https://arxiv.org/abs/2109.01903)`.'
                              ' Average the fine tuned model and the pre trained model')
     parser.add_argument("--freeze-all-but-last", type=int, default=0,
@@ -39,9 +40,9 @@ def get_command_line_arguments(parser):
                              ' simple mlp heads) only ')
 
     parser.add_argument("--load-from", type=str,
-                        default='./saved_models/saved_at_Fri Sep 29 10:05:19 2023_resnet20.pt',
+                        default='',
                         help='Load a pretrained model from given path. Train from scratch if string empty')
-    parser.add_argument("--preform-pretrain", type=bool, default=False,
+    parser.add_argument("--preform-pretrain", type=bool, default=True,
                         help='Train model in a federated manner before fine tuning')
 
     parser.add_argument("--use-cuda", type=bool, default=False,
@@ -80,14 +81,16 @@ def main():
                                                                                     batch_size=args.batch_size)
 
     if args.preform_pretrain:
-        # Train model in a federated manner before fine tuning
+        print('Train model in a federated manner before fine tuning')
 
         assert os.path.exists(args.saved_models_path), f'Create path for saved models. Got {args.saved_models_path}'
 
-        federated_train(num_standard_clients=args.num_clients, net=net, test_loader=test_loader,
-                        test_loader_ood=test_loader_ood, train_loader=train_loader, num_rounds=args.num_rounds)
+        # federated_train(num_standard_clients=args.num_clients, net=net, test_loader=test_loader,
+        #                 test_loader_ood=test_loader_ood, train_loader=train_loader, num_rounds=args.num_rounds)
 
-        torch.save(net.state_dict(), f'{args.saved_models_path}/saved_at_{time.asctime()}.pt')
+        train(net=net, epochs=args.num_rounds, train_loader=train_loader)
+
+        torch.save(net.state_dict(), f'{args.saved_models_path}/{args.model_name}_{args.num_rounds}_{time.asctime()}.pt')
     else:
         assert args.load_from, f'Fine tune a never trained model?'
 
@@ -102,6 +105,7 @@ def main():
 
         freeze_all_layers_but_last(model=net, num_layers_to_freeze=args.freeze_all_but_last)
 
+    backup_net = copy(net)
     # Fine-tune the model
     fine_tune_train(net=net,
                     train_loader_ood=train_loader_ood,
@@ -109,7 +113,15 @@ def main():
                     test_loader=test_loader,
                     base_accuracy_on_regular_data=base_accuracy_on_regular_data,
                     base_accuracy_on_ood_data=base_accuracy_on_ood_data,
-                    avg_orig=args.avg_orig)
+                    avg_orig=False)
+
+    fine_tune_train(net=backup_net,
+                    train_loader_ood=train_loader_ood,
+                    test_loader_ood=test_loader_ood,
+                    test_loader=test_loader,
+                    base_accuracy_on_regular_data=base_accuracy_on_regular_data,
+                    base_accuracy_on_ood_data=base_accuracy_on_ood_data,
+                    avg_orig=True)
 
 
 # Entry point

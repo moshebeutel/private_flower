@@ -1,10 +1,16 @@
 import torch.nn
-from models.resnet_cifar import resnet20
+from models.resnet_cifar import *
 from models.sixty_min_blitz_cnn import Net
 
 models_hub: dict[str, torch.nn.Module] = {
     'blitz': Net(),
-    'resnet20': resnet20()
+    'resnet20': resnet20(),
+    'resnet32': resnet32(),
+    'resnet44': resnet44(),
+    'resnet56': resnet56(),
+    'resnet110': resnet110(),
+    'resnet1202': resnet1202(),
+
 }
 
 
