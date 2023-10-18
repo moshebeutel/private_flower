@@ -1,8 +1,11 @@
+import copy
 from collections import OrderedDict
 from typing import Callable
 import flwr as fl
 import torch
 from torch.utils.data import DataLoader
+
+from models.sixty_min_blitz_cnn import Net
 
 
 class SimpleNumpyClient(fl.client.NumPyClient):
@@ -22,7 +25,7 @@ class SimpleNumpyClient(fl.client.NumPyClient):
         """
         super(SimpleNumpyClient, self).__init__()
         SimpleNumpyClient.client_counter += 1
-        self._net = net
+        self._net = copy.deepcopy(net)
         self._train = train_fn
         self._test = test_fn
         self._train_loader = train_loader

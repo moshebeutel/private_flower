@@ -19,6 +19,7 @@ def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int, iteration
     None
     """
     print(f'train for {epochs} epochs {iterations if iterations > 0 else len(train_loader)} iterations each epoch')
+    net.train()
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     device = next(net.parameters()).device
@@ -28,9 +29,10 @@ def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int, iteration
         for (i, (images, labels)) in enumerate(train_loader):
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
-            loss = criterion(net(images), labels)
-            epoch_loss += float(loss)
+            outputs = net(images)
+            loss = criterion(outputs, labels)
             loss.backward()
+            epoch_loss += float(loss)
             optimizer.step()
             del loss
             if 0 < iterations < i:
@@ -49,6 +51,7 @@ def test(net: torch.nn.Module, test_loader: DataLoader):
     Returns:
     Tuple[float, float]: A tuple containing the loss and accuracy on the test set.
     """
+    net.eval()
     criterion = torch.nn.CrossEntropyLoss()
     device = next(net.parameters()).device
     correct, total, loss = 0, 0, 0.0

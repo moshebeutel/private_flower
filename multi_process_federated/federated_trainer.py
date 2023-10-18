@@ -1,10 +1,10 @@
-import multiprocessing
 from collections import OrderedDict
 import torch
 from torch.utils.data import DataLoader
 from clients.client_factory import get_client
 from multi_process_federated.node_launchers import start_node
 from trainers.simple_trainer import train, test
+import torch.multiprocessing as mp
 
 
 def federated_train(net: torch.nn.Module, test_loader: DataLoader, test_loader_ood: DataLoader,
@@ -35,8 +35,7 @@ def federated_train(net: torch.nn.Module, test_loader: DataLoader, test_loader_o
 
     nodes = [num_rounds] + clients
 
-    with multiprocessing.Pool() as pool:
-        pool.map(start_node, nodes)
+    mp.spawn(start_node, args=(nodes,), nprocs=len(nodes))
 
     load_state_from_client(net=net, client=clients[-1])
 

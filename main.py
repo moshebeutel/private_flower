@@ -24,12 +24,12 @@ def get_command_line_arguments(parser):
     parser.add_argument("--data-path", type=str, default=f"{str(Path.home())}/datasets/cifar",
                         help="dir path for datafolder")
     parser.add_argument("--num-clients", type=int, default="1", help="Number of clients in federation")
-    parser.add_argument("--num-rounds", type=int, default="20",
+    parser.add_argument("--num-rounds", type=int, default="100",
                         help="Number of federated training rounds in federation")
-    parser.add_argument("--batch-size", type=int, default="128", help="Number of images in train batch")
-    parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default='resnet20',
+    parser.add_argument("--batch-size", type=int, default="512", help="Number of images in train batch")
+    parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default='resnet44',
                         help='client node or server node')
-    parser.add_argument("--avg-orig", type=bool, default=True,
+    parser.add_argument("--avg-orig", type=bool, default=False,
                         help='Use `Robust fine-tuning of zero-shot model (https://arxiv.org/abs/2109.01903)`.'
                              ' Average the fine tuned model and the pre trained model')
     parser.add_argument("--freeze-all-but-last", type=int, default=0,
@@ -39,15 +39,16 @@ def get_command_line_arguments(parser):
                              ' simple mlp heads) only ')
 
     parser.add_argument("--load-from", type=str,
-                        default='./saved_models/saved_at_Fri Sep 29 10:05:19 2023_resnet20.pt',
+                        # default='/home/user1/saved_models/cifar/resnet20/saved_at_Wed Oct 18 11:37:33 2023.pt',
+                        default='',
                         help='Load a pretrained model from given path. Train from scratch if string empty')
-    parser.add_argument("--preform-pretrain", type=bool, default=False,
+    parser.add_argument("--preform-pretrain", type=bool, default=True,
                         help='Train model in a federated manner before fine tuning')
 
-    parser.add_argument("--use-cuda", type=bool, default=False,
+    parser.add_argument("--use-cuda", type=bool, default=True,
                         help='Use GPU. Use cpu if not')
 
-    parser.add_argument("--saved-models-path", type=str, default='./saved_models',
+    parser.add_argument("--saved-models-path", type=str, default=f'{str(Path.home())}/saved_models/cifar/resnet44',
                         help='Train model in a federated manner before fine tuning')
     args = parser.parse_args()
     return args
@@ -67,7 +68,7 @@ def main():
     )
 
     # Initialize the neural network model
-    net = get_model(args.model_name).to(device)
+    net: torch.nn.Module = get_model(model_name=args.model_name, device=device)
 
     if args.load_from:
         # Load pretrained weights

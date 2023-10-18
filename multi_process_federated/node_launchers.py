@@ -26,11 +26,11 @@ def start_server(num_rounds=1):
     None
     """
     print('start_server')
-    fl.server.start_server(config=fl.server.ServerConfig(num_rounds=20))
+    fl.server.start_server(config=fl.server.ServerConfig(num_rounds=num_rounds))
     print('after start server')
 
 
-def start_node(arg):
+def start_node(i, arg):
     """
     Start a node, either a client or a server.
 
@@ -40,6 +40,7 @@ def start_node(arg):
     Returns:
     None
     """
+    arg=arg[i]
     if isinstance(arg, SimpleNumpyClient):
         print('Sleep ...')
         sleep(1)
