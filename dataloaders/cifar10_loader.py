@@ -1,7 +1,7 @@
 import os.path
 import torchvision.transforms as transforms
-from torchvision.datasets import CIFAR10
-from torch.utils.data import DataLoader
+from torchvision.datasets import CIFAR10, CIFAR100
+from torch.utils.data import DataLoader, Dataset
 
 
 def load_data(root: str, batch_size=32, ood=False):
@@ -31,3 +31,10 @@ def load_data(root: str, batch_size=32, ood=False):
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=32)
     return train_loader, test_loader
+
+
+def load_raw_data(root: str) -> tuple[Dataset, Dataset, list[str]]:
+    train_set = CIFAR10(root, train=True, download=True)
+    test_set = CIFAR10(root, train=False, download=True)
+    classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+    return train_set, test_set, classes

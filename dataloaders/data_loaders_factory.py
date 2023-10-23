@@ -1,6 +1,6 @@
 import os
 
-from dataloaders.cifar10_loader import load_data
+from dataloaders.cifar10_loader import load_data, load_raw_data
 
 
 def get_data_loaders(data_path: str, batch_size: int):
@@ -25,3 +25,8 @@ def get_data_loaders(data_path: str, batch_size: int):
     train_loader_ood, test_loader_ood = load_data(root=data_path, batch_size=batch_size, ood=True)
 
     return train_loader, train_loader_ood, test_loader, test_loader_ood
+
+
+def get_raw_data(data_path: str):
+    train_set, test_set, classes = load_raw_data(data_path)
+    return train_set, test_set, classes
