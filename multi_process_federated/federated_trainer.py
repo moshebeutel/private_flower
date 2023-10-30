@@ -1,13 +1,14 @@
-import multiprocessing
+import torch.multiprocessing as mp
 from collections import OrderedDict
 import torch
+from flwr.server.strategy import Strategy
 from torch.utils.data import DataLoader
 from clients.client_factory import get_client
 from multi_process_federated.node_launchers import start_node
 from trainers.simple_trainer import train, test
 
 
-def federated_train(net: torch.nn.Module, test_loader: DataLoader, test_loader_ood: DataLoader,
+def federated_train(net: torch.nn.Module, strategy: Strategy,  test_loader: DataLoader, test_loader_ood: DataLoader,
                     train_loader: DataLoader, num_rounds: int = 1,
                     num_standard_clients: int = 1, add_ood_client: bool = True):
     """
@@ -25,6 +26,12 @@ def federated_train(net: torch.nn.Module, test_loader: DataLoader, test_loader_o
     Returns:
     None
     """
+
+    print(f'Federated Learning')
+    print(f'{num_standard_clients} standard clients')
+    print(f'{"a single" if add_ood_client else "no"} ood client')
+    print(f'{num_rounds} rounds')
+
     clients = [get_client(net=net, train_fn=train, test_fn=test, train_loader=train_loader, test_loader=test_loader)
                for _ in range(num_standard_clients)]
 
@@ -33,10 +40,9 @@ def federated_train(net: torch.nn.Module, test_loader: DataLoader, test_loader_o
                                 test_loader=test_loader_ood)
         clients += [client_ood]
 
-    nodes = [num_rounds] + clients
+    nodes = [(num_rounds, strategy)] + clients
 
-    with multiprocessing.Pool() as pool:
-        pool.map(start_node, nodes)
+    mp.spawn(fn=start_node, args=tuple(nodes), nprocs=len(nodes))
 
     load_state_from_client(net=net, client=clients[-1])
 
