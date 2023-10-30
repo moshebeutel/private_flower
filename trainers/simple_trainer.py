@@ -1,9 +1,12 @@
+import gc
 from typing import List
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+# from memory_profiler import profile
 
 
+# @profile
 def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int, iterations: int = -1):
     """
     Train the network on the training set.
@@ -18,7 +21,9 @@ def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int, iteration
     Returns:
     None
     """
+
     print(f'train for {epochs} epochs {iterations if iterations > 0 else len(train_loader)} iterations each epoch')
+    net.train()
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     device = next(net.parameters()).device
@@ -32,10 +37,34 @@ def train(net: torch.nn.Module, train_loader: DataLoader, epochs: int, iteration
             epoch_loss += float(loss)
             loss.backward()
             optimizer.step()
-            del loss
+            images, labels = images.to('cpu'), labels.to('cpu')
+            loss = loss.to('cpu')
+            del loss, images, labels
+            gc.collect()
+            torch.cuda.empty_cache()
             if 0 < iterations < i:
                 break
+
         pbar.set_description(f'Epoch {epoch} loss {epoch_loss}')
+    _optimizer_to(optimizer, 'cpu')
+    del optimizer
+    gc.collect()
+    torch.cuda.empty_cache()
+
+
+def _optimizer_to(optimizer, device):
+    for param in optimizer.state.values():
+        # Not sure there are any global tensors in the state dict
+        if isinstance(param, torch.Tensor):
+            param.data = param.data.to(device)
+            if param._grad is not None:
+                param._grad.data = param._grad.data.to(device)
+        elif isinstance(param, dict):
+            for subparam in param.values():
+                if isinstance(subparam, torch.Tensor):
+                    subparam.data = subparam.data.to(device)
+                    if subparam._grad is not None:
+                        subparam._grad.data = subparam._grad.data.to(device)
 
 
 def test(net: torch.nn.Module, test_loader: DataLoader):
@@ -51,6 +80,7 @@ def test(net: torch.nn.Module, test_loader: DataLoader):
     """
     criterion = torch.nn.CrossEntropyLoss()
     device = next(net.parameters()).device
+    net.eval()
     correct, total, loss = 0, 0, 0.0
     with torch.no_grad():
         for data in tqdm(test_loader):

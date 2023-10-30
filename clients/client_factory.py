@@ -15,5 +15,7 @@ def get_client(net, train_fn, test_fn, train_loader, test_loader):
     Returns:
     SimpleNumpyClient: An instance of the SimpleNumpyClient.
     """
-    return SimpleNumpyClient(net=net, train_fn=train_fn, test_fn=test_fn, train_loader=train_loader,
+    # return SimpleNumpyClient(net=net, train_fn=train_fn, test_fn=test_fn, train_loader=train_loader,
+    #                          test_loader=test_loader)
+    return SimpleNumpyClient(train_fn=train_fn, test_fn=test_fn, train_loader=train_loader,
                              test_loader=test_loader)
