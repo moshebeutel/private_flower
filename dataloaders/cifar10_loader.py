@@ -1,4 +1,6 @@
 import os.path
+import random
+
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, CIFAR100
 from torch.utils.data import DataLoader, Dataset
@@ -33,8 +35,23 @@ def load_data(root: str, batch_size=32, ood=False):
     return train_loader, test_loader
 
 
-def load_raw_data(root: str) -> tuple[Dataset, Dataset, list[str]]:
+def load_raw_data(root: str) -> tuple[Dataset, Dataset, Dataset, list[str]]:
     train_set = CIFAR10(root, train=True, download=True)
+
+    train_set, validation_set = train_val_split(train_set)
     test_set = CIFAR10(root, train=False, download=True)
     classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
-    return train_set, test_set, classes
+    return train_set, validation_set, test_set, classes
+
+
+def train_val_split(train_set: Dataset, split_ratio: float = 0.8, shuffle: bool = True) -> tuple[Dataset, Dataset]:
+    from torch.utils.data import DataLoader, Subset
+    dataset_size = len(train_set)
+    split_index = int(dataset_size * split_ratio)
+    indices = list(range(dataset_size))
+    if shuffle:
+        random.shuffle(indices)
+    # Create Subset objects for the training and validation sets
+    train_subset = Subset(train_set, indices[:split_index])
+    validation_subset = Subset(train_set, indices[split_index:])
+    return train_subset, validation_subset
