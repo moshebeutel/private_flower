@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets import VisionDataset
 
-from dataloaders.cifar10_loader import load_raw_data
+from data.cifar10 import load_raw_data
 
 
 class ProcessedCifar10(VisionDataset):

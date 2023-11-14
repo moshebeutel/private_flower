@@ -8,7 +8,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from tqdm import tqdm
-from dataloaders.cifar10_loader import load_raw_data
+from data.cifar10 import load_raw_data
+from data.data_factory import get_datasets_hub_names
 from trainers.fine_tune_train import save_iteration_results
 
 
@@ -24,6 +25,9 @@ def get_command_line_arguments(parser):
     """
     parser.add_argument("--data-path", type=str, default=f"{str(Path.home())}/datasets/cifar",
                         help="dir path for datafolder")
+
+    parser.add_argument("--dataset-name", type=str, choices=get_datasets_hub_names(), default='CIFAR10',
+                        help='Name of the dataset (CIFAR10, CIFAR100, ...)')
 
     parser.add_argument("--batch-size", type=int, default="512", help="Number of images in train batch")
 

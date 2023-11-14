@@ -4,7 +4,7 @@ import clip
 import torch
 from torchvision.transforms import transforms
 
-from dataloaders.data_loaders_factory import get_raw_data
+from data.data_factory import get_raw_data
 
 
 def get_command_line_arguments(parser):

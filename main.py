@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 import torch
 from models.model_factory import get_model_hub_names, get_model
-from dataloaders.data_loaders_factory import get_data_loaders
+from data.data_factory import get_data_loaders, get_datasets_hub_names
 from multi_process_federated.federated_trainer import federated_train
 from trainers.fine_tune_train import fine_tune_train, freeze_all_layers_but_last
 from trainers.simple_trainer import evaluate_on_loaders
@@ -29,6 +29,8 @@ def get_command_line_arguments(parser):
     parser.add_argument("--batch-size", type=int, default="512", help="Number of images in train batch")
     parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default='resnet44',
                         help='client node or server node')
+    parser.add_argument("--dataset-name", type=str, choices=get_datasets_hub_names(), default='CIFAR10',
+                        help='Name of the dataset (CIFAR10, CIFAR100, ...)')
     parser.add_argument("--avg-orig", type=bool, default=True,
                         help='Use `Robust fine-tuning of zero-shot model (https://arxiv.org/abs/2109.01903)`.'
                              ' Average the fine tuned model and the pre trained model')
@@ -79,6 +81,7 @@ def main():
     # Load data loaders for training and testing
     train_loader, train_loader_ood, test_loader, test_loader_ood, _ = get_data_loaders(data_path=args.data_path,
                                                                                        batch_size=args.batch_size)
+
 
     if args.preform_pretrain:
         # Train model in a federated manner before fine tuning
