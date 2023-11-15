@@ -3,12 +3,8 @@ from torchvision.datasets import CIFAR100
 from data.dataset_wrapper import DatasetWrapper
 
 
-def get_dataset_wrapper():
-    return Cifar100Wrapper
-
-
-def get_ood_dataset_wrapper():
-    return Cifar100AugWrapper
+def get_dataset_wrapper(ood: bool):
+    return Cifar100Wrapper if not ood else Cifar100AugWrapper
 
 
 class Cifar100Wrapper(DatasetWrapper):

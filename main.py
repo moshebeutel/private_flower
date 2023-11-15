@@ -21,17 +21,23 @@ def get_command_line_arguments(parser):
     Returns:
     argparse.Namespace: Parsed arguments
     """
-    parser.add_argument("--data-path", type=str, default=f"{str(Path.home())}/datasets/cifar",
+    model_name = 'resnet20'
+    assert model_name in get_model_hub_names(), f'Expected one of {get_model_hub_names()}. Got {model_name}'
+
+    dataset_name = 'CIFAR100'
+    assert dataset_name in get_datasets_hub_names(), f'Expected one of {get_datasets_hub_names()}. Got {dataset_name}'
+
+    parser.add_argument("--data-path", type=str, default=f"{str(Path.home())}/datasets/{dataset_name}",
                         help="dir path for datafolder")
     parser.add_argument("--num-clients", type=int, default="1", help="Number of clients in federation")
     parser.add_argument("--num-rounds", type=int, default="100",
                         help="Number of federated training rounds in federation")
     parser.add_argument("--batch-size", type=int, default="512", help="Number of images in train batch")
-    parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default='resnet44',
+    parser.add_argument("--model-name", type=str, choices=get_model_hub_names(), default=model_name,
                         help='client node or server node')
-    parser.add_argument("--dataset-name", type=str, choices=get_datasets_hub_names(), default='CIFAR10',
+    parser.add_argument("--dataset-name", type=str, choices=get_datasets_hub_names(), default=dataset_name,
                         help='Name of the dataset (CIFAR10, CIFAR100, ...)')
-    parser.add_argument("--avg-orig", type=bool, default=True,
+    parser.add_argument("--avg-orig", type=bool, default=False,
                         help='Use `Robust fine-tuning of zero-shot model (https://arxiv.org/abs/2109.01903)`.'
                              ' Average the fine tuned model and the pre trained model')
     parser.add_argument("--freeze-all-but-last", type=int, default=0,
@@ -41,16 +47,17 @@ def get_command_line_arguments(parser):
                              ' simple mlp heads) only ')
 
     parser.add_argument("--load-from", type=str,
-                        default=f'{str(Path.home())}/saved_models/cifar/resnet44/saved_at_Wed Oct 18 16:09:42 2023.pt',
-                        # default='',
+                        # default=f'{str(Path.home())}/saved_models/cifar/resnet44/saved_at_Wed Oct 18 16:09:42 2023.pt',
+                        default='',
                         help='Load a pretrained model from given path. Train from scratch if string empty')
-    parser.add_argument("--preform-pretrain", type=bool, default=False,
+    parser.add_argument("--preform-pretrain", type=bool, default=True,
                         help='Train model in a federated manner before fine tuning')
 
     parser.add_argument("--use-cuda", type=bool, default=True,
                         help='Use GPU. Use cpu if not')
 
-    parser.add_argument("--saved-models-path", type=str, default=f'{str(Path.home())}/saved_models/cifar/resnet44',
+    parser.add_argument("--saved-models-path", type=str, default=f'{str(Path.home())}/saved_models/'
+                                                                 f'{model_name}/{dataset_name}/',
                         help='Train model in a federated manner before fine tuning')
     args = parser.parse_args()
     return args
@@ -79,9 +86,9 @@ def main():
         net.load_state_dict(torch.load(args.load_from))
 
     # Load data loaders for training and testing
-    train_loader, train_loader_ood, test_loader, test_loader_ood, _ = get_data_loaders(data_path=args.data_path,
-                                                                                       batch_size=args.batch_size)
-
+    train_loader, train_loader_ood, test_loader, test_loader_ood = get_data_loaders(data_path=args.data_path,
+                                                                                    dataset_name=args.dataset_name,
+                                                                                    batch_size=args.batch_size)
 
     if args.preform_pretrain:
         # Train model in a federated manner before fine tuning

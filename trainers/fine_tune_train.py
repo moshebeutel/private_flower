@@ -82,13 +82,13 @@ def average_models(net: torch.nn.Module, orig_pretrained_net: torch.nn.Module):
         p.data /= 2.0
 
 
-def save_iteration_results(accuracy_list_on_ood_data: List[float], accuracy_list_on_standard_data: List[float]):
+def save_iteration_results(accuracy_list_on_ood_data: list[float], accuracy_list_on_standard_data: list[float]):
     """
     Save the iteration results of accuracy on OOD and standard data to files.
 
     Parameters:
-    accuracy_list_on_ood_data (List[float]): List of accuracies on OOD data.
-    accuracy_list_on_standard_data (List[float]): List of accuracies on standard data.
+    accuracy_list_on_ood_data (list[float]): List of accuracies on OOD data.
+    accuracy_list_on_standard_data (list[float]): List of accuracies on standard data.
 
     Returns:
     None

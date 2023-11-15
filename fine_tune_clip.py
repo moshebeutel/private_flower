@@ -78,6 +78,9 @@ def convert_models_to_mix(model):
 def evaluate(loader: DataLoader, model: torch.nn.Module, device: torch.device) -> float:
     total: int = 0
     correct: int = 0
+    assert hasattr(loader.dataset, 'tokenized_title_list'), (f'Expected underlying dataset to have'
+                                                             f' tokenized_title_list attribute.'
+                                                             f' Got {type(loader.dataset)}')
     text_inputs = torch.cat(loader.dataset.tokenized_title_list).to(device)
     for image, label, _ in loader:
         total += len(label)
